@@ -173,7 +173,7 @@ int main()
             qsort(avg_matrix[i][j],a, sizeof(double), compare);
     }
     
-    printf("============================== CITY STATSTICS MATRIX ==============================\n");
+    printf("============================== CITY STATISTICS MATRIX ==============================\n");
     for(i = 0; i < r; i++)
     {
         for(j = 0; j < c; j++)

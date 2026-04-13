@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 // =========== Get Input ===========
 // - Get the input from keyboard
@@ -28,13 +29,6 @@ void get_input(int *r, int *c, int *a, int *n, int *t, int *seed)
     fscanf(fptr, "%i", n);
     fscanf(fptr, "%i", t);
     fscanf(fptr, "%i", seed);
-
-    //printf("r: %d\n", *r);
-    //printf("c: %d\n", *c);
-    //printf("a: %d\n", *a);
-    //printf("n: %d\n", *n);
-    //printf("t: %d\n", *t);
-    //printf("seed: %d\n", *seed);
 }
 
 double generate_decimal()
@@ -82,14 +76,8 @@ double**** generate_matrix(int r, int c, int a, int n)
             for (k = 0; k < a; k++) 
             {
                 matrix[i][j][k] = malloc(n * sizeof(double));
-                //printf("R=%d | C=%d | A=%d | ", i, j, k);
-                
                 for(l = 0; l < n; l++)
-                {
                     matrix[i][j][k][l] = generate_decimal();
-                    //printf("%.1lf ", matrix[i][j][k][l]);
-                }
-                //printf("\n-----------------------------------------------------------------\n");
             }
         }
     }
@@ -110,16 +98,64 @@ double*** generate_avg_matrix(int r, int c, int a, int n, double**** grade_matri
         for (j = 0; j < c; j++) 
         {
             matrix[i][j] = malloc(a * sizeof(double *));
-            //printf("R=%d | C=%d | ", i, j);
             for(k = 0; k < a; k++)
-            {
                 matrix[i][j][k] = calculate_average(grade_matrix[i][j][k], n);
-                //printf("%.1lf ", matrix[i][j][k]);
-            }
-            //printf("\n-----------------------------------------------------------------\n");
         }
     }
     return matrix;
+}
+
+double* city_statistics(double*** avg_matrix, int r, int c, int a)
+{
+    int i, j, k = 0;
+    double median, avg, sd = 0.0;
+    double* region_avg = malloc(r*sizeof(double));
+
+    printf("============================== CITY STATISTICS MATRIX ==============================\n");
+    for(i = 0; i < r; i++)
+    {
+        for(j = 0; j < c; j++)
+        {
+            printf("R=%d | C=%d | ", i, j);
+            avg = calculate_average(avg_matrix[i][j], a);
+            sd = calculate_standard_deviantion(avg_matrix[i][j], avg, a);
+            if(a % 2 == 0)
+                median = (avg_matrix[i][j][a/2 - 1] + avg_matrix[i][j][a/2])/2; 
+            else
+                median = avg_matrix[i][j][a/2];
+
+            printf("%.1lf | %.1lf | %.1lf | %.1lf | %.1lf |\n", avg_matrix[i][j][0], avg_matrix[i][j][a-1], median, avg, sd); 
+
+            region_avg[i] += avg;
+        }
+
+        region_avg[i] /= c;
+    }
+
+    return region_avg;
+}
+
+double region_statistics(double** region_matrix, int r, int c, int a, double* region_avg)
+{
+    int i, j, k = 0;
+    double median, avg, sd = 0.0;
+    double country_avg = 0.0;
+
+    printf("============================== REGION STATISTICS MATRIX ==============================\n");
+    for(i = 0; i < r; i++)
+    {
+        printf("R=%d |", i);
+
+        if(c*a % 2 == 0)
+            median = (region_matrix[i][c*a/2 - 1] + region_matrix[i][c*a/2])/2;
+        else
+            median = region_matrix[i][c*a/2];
+
+        sd = calculate_standard_deviantion(region_matrix[i], region_avg[i], c*a);        
+        printf("%.1lf | %.1lf | %.1lf | %.1lf | %.1lf |\n", region_matrix[i][0], region_matrix[i][c*a-1], median, region_avg[i], sd);
+    }
+
+    return country_avg;
 }
 
 void free_matrix(double**** matrix, int r, int c, int a, int n)
@@ -152,9 +188,7 @@ void free_matrix(double**** matrix, int r, int c, int a, int n)
 int main()
 {
     int r, c, a, n, t, seed = 0;
-    int i, j, k, l = 0;
-
-    double median, avg, sd = 0.0;
+    int i, j = 0;
     get_input(&r, &c, &a, &n, &t, &seed);
 
     if (r <= 0 | c <= 0 | a <= 0 | n <= 0 | t<= 0)
@@ -167,29 +201,26 @@ int main()
 
     double**** matrix = generate_matrix(r, c, a, n);
     double*** avg_matrix = generate_avg_matrix(r, c, a, n, matrix);
+
     for(i = 0; i < r; i++)
     {
         for(j = 0; j < c; j++)
             qsort(avg_matrix[i][j],a, sizeof(double), compare);
     }
-    
-    printf("============================== CITY STATISTICS MATRIX ==============================\n");
-    for(i = 0; i < r; i++)
-    {
-        for(j = 0; j < c; j++)
-        {
-            printf("R=%d | C=%d | ", i, j);
-            avg = calculate_average(avg_matrix[i][j], a);
-            sd = calculate_standard_deviantion(avg_matrix[i][j], avg, a);
-            if(a % 2 == 0)
-                median = (avg_matrix[i][j][a/2 - 1] + avg_matrix[i][j][a/2])/2; 
-            else
-                median = avg_matrix[i][j][a/2];
 
-            printf("%.1lf | %.1lf | %.1lf | %.1lf | %.1lf |\n", avg_matrix[i][j][0], avg_matrix[i][j][a-1], median, avg, sd); 
-        }
+    double* region_avg = city_statistics(avg_matrix, r, c, a); 
+    double** region_matrix = malloc(r * sizeof(double**));
+
+    for (i = 0; i < r; i++) 
+    {
+        region_matrix[i] = malloc(c * a * sizeof(double *));
+        for (j = 0; j < c; j++) 
+            memcpy(region_matrix[i] + j * a, avg_matrix[i][j], a * sizeof(double));
+        
+        qsort(region_matrix[i], a * c, sizeof(double), compare);
     }
 
+    double country_avg = region_statistics(region_matrix, r, c, a, region_avg);
 
     free_matrix(matrix, r, c, a, n);
     return 0;
